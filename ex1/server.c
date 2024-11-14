@@ -192,29 +192,24 @@ void run_add_cmd(FwRequest* fwReq, FwRule* fwHead) {
 
 void run_del_cmd(FwRequest* fwReq, FwRule* fwHead) {
     char rule[FW_MAX_CMD];
-    // Skip the 'D' command character and any leading spaces
     int matched = sscanf(fwReq->RawCmd, "D %[^\n]", rule);
     
-    // Check if we successfully extracted a rule
     if (matched != 1) {
         printf("Rule invalid\n");
         return;
     }
 
-    // Remove any trailing whitespace
     int len = strlen(rule);
     while (len > 0 && isspace(rule[len - 1])) {
         rule[len - 1] = '\0';
         len--;
     }
 
-    // First check if the list is empty
     if (fwHead->pNext == NULL) {
         printf("Rule not found\n");
         return;
     }
 
-    // Check if the rule format is valid using existing validation function
     if (!is_valid_rule(rule)) {
         printf("Rule invalid\n");
         return;
@@ -223,10 +218,8 @@ void run_del_cmd(FwRequest* fwReq, FwRule* fwHead) {
     FwRule* prev = fwHead;
     FwRule* current = fwHead->pNext;
 
-    // Search for an exact match of the rule
     while (current != NULL) {
         if (strcmp(current->rule, rule) == 0) {
-            // Found exact match - delete it
             prev->pNext = current->pNext;
             free(current);
             rulecount--;
@@ -237,7 +230,6 @@ void run_del_cmd(FwRequest* fwReq, FwRule* fwHead) {
         current = current->pNext;
     }
 
-    // If no exact match was found
     printf("Rule not found\n");
 }
 
@@ -248,23 +240,19 @@ void run_del_cmd(FwRequest* fwReq, FwRule* fwHead) {
 
 
 void run_list_rules_cmd(FwRule* fwHead) {
-    FwRule* current = fwHead->pNext; // Start from the first actual rule
+    FwRule* current = fwHead->pNext; 
 
-    // If there are no rules in the list, print a message and return
     if (current == NULL) {
         printf("No rules in firewall\n");
         return;
     }
 
-    // Track unique rules
     char uniqueRules[100][FW_MAX_CMD];
     int uniqueCount = 0;
 
-    // Iterate through each rule
     while (current != NULL) {
         bool isDuplicate = false;
 
-        // Check if this rule has already been printed
         for (int i = 0; i < uniqueCount; i++) {
             if (strcmp(uniqueRules[i], current->rule) == 0) {
                 isDuplicate = true;
@@ -272,22 +260,18 @@ void run_list_rules_cmd(FwRule* fwHead) {
             }
         }
 
-        // Print and add to unique list if not a duplicate
         if (!isDuplicate) {
             printf("Rule: %s\n", current->rule);
             strcpy(uniqueRules[uniqueCount], current->rule);
             uniqueCount++;
 
-            // Create arrays to track unique IPs and ports
             char uniqueIPs[100][16];
             int uniquePorts[100];
             int queryCount = 0;
 
-            // Process each match for this rule
             for (int i = 0; i < current->matchCount; i++) {
                 bool isDuplicateQuery = false;
 
-                // Check if this IP and port combination already exists
                 for (int j = 0; j < queryCount; j++) {
                     if (strcmp(uniqueIPs[j], current->matchedIPs[i]) == 0 && 
                         uniquePorts[j] == current->matchedports[i]) {
@@ -296,7 +280,6 @@ void run_list_rules_cmd(FwRule* fwHead) {
                     }
                 }
 
-                // Print if not a duplicate
                 if (!isDuplicateQuery && queryCount < 100) {
                     strcpy(uniqueIPs[queryCount], current->matchedIPs[i]);
                     uniquePorts[queryCount] = current->matchedports[i];
@@ -306,7 +289,6 @@ void run_list_rules_cmd(FwRule* fwHead) {
             }
         }
 
-        // Move to the next rule
         current = current->pNext;
     }
 }
@@ -324,13 +306,11 @@ void run_check_cmd(FwRequest* fwReq, FwRule* fwHead) {
     char ip[16];
     int port;
 
-    // Parse the IP and port from the command
     if (sscanf(fwReq->RawCmd, "C %15s %d", ip, &port) != 2) {
         printf("Illegal IP address or port specified\n");
         return;
     }
 
-    // Validate IP and port
     char port_str[6];
     sprintf(port_str, "%d", port);
     if (!validate_ip(ip) || !validate_ip_port(port_str)) {
@@ -338,7 +318,6 @@ void run_check_cmd(FwRequest* fwReq, FwRule* fwHead) {
         return;
     }
 
-    // If no rules exist, reject the connection
     if (!fwHead || !fwHead->pNext) {
         printf("Connection rejected\n");
         return;
@@ -346,7 +325,6 @@ void run_check_cmd(FwRequest* fwReq, FwRule* fwHead) {
 
     uint32_t check_ip = ip_to_int(ip);
 
-    // Check against existing rules
     FwRule* curr = fwHead->pNext;
     while (curr != NULL) {
         char rule_copy[256];
@@ -356,17 +334,16 @@ void run_check_cmd(FwRequest* fwReq, FwRule* fwHead) {
         char* token = strtok(rule_copy, " ");
         if (!token) {
             curr = curr->pNext;
-            continue;  // Invalid rule format
+            continue;  
         }
         char* rule_ip_part = token;
         token = strtok(NULL, " ");
         if (!token) {
             curr = curr->pNext;
-            continue;  // Invalid rule format
+            continue;  
         }
         char* rule_port_part = token;
 
-        // Parse IP range
         uint32_t rule_start_ip, rule_end_ip;
         char* ip_dash = strchr(rule_ip_part, '-');
         if (ip_dash != NULL) {
@@ -377,18 +354,17 @@ void run_check_cmd(FwRequest* fwReq, FwRule* fwHead) {
             rule_end_ip = ip_to_int(end_ip_str);
             if (rule_start_ip == 0 || rule_end_ip == 0) {
                 curr = curr->pNext;
-                continue;  // Invalid IP addresses
+                continue;  
             }
         } else {
             rule_start_ip = ip_to_int(rule_ip_part);
             rule_end_ip = rule_start_ip;
             if (rule_start_ip == 0) {
                 curr = curr->pNext;
-                continue;  // Invalid IP address
+                continue;  
             }
         }
 
-        // Parse port range
         int rule_start_port, rule_end_port;
         char* port_dash = strchr(rule_port_part, '-');
         if (port_dash != NULL) {
@@ -399,23 +375,19 @@ void run_check_cmd(FwRequest* fwReq, FwRule* fwHead) {
             rule_start_port = atoi(rule_port_part);
             rule_end_port = rule_start_port;
         }
-        // Validate ports
         if (rule_start_port < 0 || rule_start_port > 65535 ||
             rule_end_port < 0 || rule_end_port > 65535) {
             curr = curr->pNext;
-            continue;  // Invalid port numbers
+            continue;  
         }
 
-        // Validate that start_ip <= end_ip, start_port <= end_port
         if (rule_start_ip > rule_end_ip || rule_start_port > rule_end_port) {
             curr = curr->pNext;
-            continue;  // Invalid rule range
+            continue; 
         }
 
-        // Check if check_ip is within rule_start_ip and rule_end_ip
         if (check_ip >= rule_start_ip && check_ip <= rule_end_ip &&
             port >= rule_start_port && port <= rule_end_port) {
-            // We have a match
             if (curr->matchCount < 100) {
                 strcpy(curr->matchedIPs[curr->matchCount], ip);
                 curr->matchedports[curr->matchCount] = port;
@@ -428,7 +400,6 @@ void run_check_cmd(FwRequest* fwReq, FwRule* fwHead) {
         curr = curr->pNext;
     }
 
-    // If no matching rule was found
     printf("Connection rejected\n");
 }
 
@@ -454,10 +425,9 @@ void run_interactive(CmdArg* pCmd) {
 
     while (true) {
         fgets(line, sizeof(line), stdin);
-        line[strcspn(line, "\n")] = 0;  // Remove newline character
+        line[strcspn(line, "\n")] = 0; 
 
-        // Add the command to request history
-        add_request_to_history(line);  // Call add_request_to_history after reading command
+        add_request_to_history(line); 
 
         FwRequest* fwReq = malloc(sizeof(FwRequest));
         if (!fwReq) {
@@ -465,8 +435,8 @@ void run_interactive(CmdArg* pCmd) {
             continue;
         }
 
-        strcpy(fwReq->RawCmd, line);  // Store the command
-        fwReq->Cmd = line[0];         // Command is the first character
+        strcpy(fwReq->RawCmd, line);  
+        fwReq->Cmd = line[0];        
 
         switch (fwReq->Cmd) {
         case 'A':
@@ -479,7 +449,7 @@ void run_interactive(CmdArg* pCmd) {
             run_list_rules_cmd(fwRuleHead);
             break;
         case 'R':
-            run_list_requests_cmd();   // Call run_list_requests_cmd without parameters
+            run_list_requests_cmd();   
             break;
         case 'C':
             run_check_cmd(fwReq, fwRuleHead);
@@ -510,7 +480,6 @@ void handle_client(int client_socket, FwRule* fwRuleHead) {
     if (bytes_received > 0) {
         buffer[bytes_received] = '\0';
         
-        // Create FwRequest from received command
         FwRequest* fwReq = malloc(sizeof(FwRequest));
         if (!fwReq) {
             const char* error_msg = "Memory allocation failed\n";
@@ -522,17 +491,14 @@ void handle_client(int client_socket, FwRule* fwRuleHead) {
         strcpy(fwReq->RawCmd, buffer);
         fwReq->Cmd = buffer[0];
         
-        // Add command to history
         add_request_to_history(buffer);
         
         char response[1024] = {0};
         FILE* original_stdout = stdout;
         
-        // Redirect stdout to our buffer
         FILE* temp = tmpfile();
         stdout = temp;
         
-        // Process the command
         switch (fwReq->Cmd) {
             case 'A':
                 run_add_cmd(fwReq, fwRuleHead);
@@ -554,15 +520,13 @@ void handle_client(int client_socket, FwRule* fwRuleHead) {
                 break;
         }
         
-        // Get the output from our temporary file
         fseek(temp, 0, SEEK_SET);
         fgets(response, sizeof(response), temp);
         
-        // Restore stdout
+        
         stdout = original_stdout;
         fclose(temp);
         
-        // Send response back to client
         send(client_socket, response, strlen(response), 0);
         
         free(fwReq);
@@ -581,7 +545,6 @@ void run_server(int port, FwRule* fwRuleHead) {
     struct sockaddr_in address;
     int opt = 1;
     
-    // Create socket
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
         perror("socket failed");
         exit(EXIT_FAILURE);
@@ -596,13 +559,11 @@ if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(port);
     
-    // Bind socket
     if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
         perror("bind failed");
         exit(EXIT_FAILURE);
     }
     
-    // Listen for connections
     if (listen(server_fd, 3) < 0) {
         perror("listen failed");
         exit(EXIT_FAILURE);
@@ -614,7 +575,6 @@ if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
         struct sockaddr_in client_addr;
         socklen_t addr_len = sizeof(client_addr);
         
-        // Accept client connection
         int client_socket = accept(server_fd, (struct sockaddr *)&client_addr, &addr_len);
         if (client_socket < 0) {
             perror("accept failed");
@@ -654,7 +614,6 @@ int main(int argc, char** argv) {
     if (cmd.is_interactive) {
         run_interactive(&cmd);
     } else {
-        // Run in server mode with the specified port
         int port = atoi(argv[1]);
         if (port <= 0 || port > 65535) {
             printf("Invalid port number\n");
